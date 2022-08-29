@@ -1,0 +1,39 @@
+from bs4 import BeautifulSoup
+import requests
+import pandas as pd
+
+def helper(table_body):
+  def util(winner_list, subject):
+    res = []
+    for winner_name, anchor_tag in zip(winner_list.get_text().rstrip().split(';'), [ w for w in winner_list.find_all('a')]):
+      t = {}
+      t['winner_name'] = winner_name
+      t['subject'] = subject
+      t['year'] = cur_year
+      t['url'] = anchor_tag['href']
+      res.append(t)
+    return res
+  res = []
+  rows = table_body.find_all('tr')
+  for row in rows[1:len(rows)-1]:
+    cleaned_row = [ r for r in row if r != '\n']
+    cur_year = cleaned_row[0].get_text().rstrip()
+    subjects = ['Physics', 'Chemistry', 'Physiology or Medicine', 'Literature', 'Peace', 'Economics']
+    for i,subject in enumerate(subjects):
+      try:
+        res.extend(util(cleaned_row[i+1], subject))
+      except:
+        print(f"Cannot parse the row: {cleaned_row, i}")
+  return res
+
+url = 'https://en.wikipedia.org/wiki/List_of_Nobel_laureates'
+req = requests.get(url)
+soup = BeautifulSoup(req.text, 'html.parser')
+df = None
+for t in soup.find_all('table'):
+  if 'wikitable' in t['class']:
+    print('\n')
+    df = pd.DataFrame(helper(t.tbody))
+    break
+print(df)
+df.to_csv(r"F:\sem9\InformationRetrival\Worksheet2\result.csv", index=False)
