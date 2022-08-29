@@ -1,0 +1,173 @@
+print("Invertd Index")
+from nltk.tokenize import word_tokenize
+import nltk
+from nltk.corpus import stopwords
+import pandas as pd
+
+#%%/
+no_of_docs = 3
+files = ['file 1.txt','file 2.txt','file 3.txt']
+dictInvIndex = {}
+"""
+def updateInvIndex(file_name,doc_id):
+    file = open(file_name)
+    read = file.read()
+    file.seek(0)
+
+    punc = '''!()-[]{};:'"\, <>./?@#$%^&*_~'''
+    for ele in read:
+    	if ele in punc:
+    		read = read.replace(ele, " ")
+
+    read=read.lower()					
+
+    for i in range(1):
+        text_tokens = word_tokenize(read)
+
+    tokens_without_sw = [
+    	word for word in text_tokens if not word in stopwords.words()]
+    #print(tokens_without_sw)
+    
+    for item in tokens_without_sw:
+    		if item not in dictInvIndex:
+    			dictInvIndex[item] = set()
+    		if item in dictInvIndex:
+   				dictInvIndex[item].add(doc_id)
+
+for i,file in enumerate(files):
+    updateInvIndex(file,i+1)
+print(dictInvIndex)
+#%%/
+
+import string
+
+def filter_string(in_string):
+        in_string = in_string .lower()
+        table = str.maketrans({key: None for key in string.punctuation})
+        out_string = in_string.translate(table)
+        return out_string
+
+def answer(query):
+    query = query.replace(" ", "")
+    neg = False
+    try:
+        if query[0] == '!':
+            neg = True
+    except IndexError:
+        pass
+    filt_query = filter_string(query)
+    if filt_query in dictInvIndex:
+        doc_ids = dictInvIndex[filt_query]
+    else:
+        doc_ids = []
+    if neg:
+        doc_ids = [ i for i in range(1,no_of_docs+1) if i not in doc_ids ]
+    return doc_ids
+
+
+def answer_bool(query):
+    or_operator = '|'
+    and_operator = '&'
+    clauses = query.split(and_operator)
+    or_terms = clauses[0].split(or_operator)
+    doc_ids = set()
+    for term in or_terms:
+        try:
+            doc_ids.update(answer(term))
+        except KeyError:
+            pass
+    n = len(clauses)
+    for i in range(1, n):
+        or_terms = clauses[i].split(or_operator)
+        clause_ids = set()
+        for term in or_terms:
+            try:
+                clause_ids.update(answer(term))
+            except KeyError:
+                pass
+        doc_ids = doc_ids.intersection(clause_ids)
+    return doc_ids
+
+
+print()
+query='public & oct'
+res=answer_bool(query)
+print("final result is ",res)
+"""
+#%%/
+print('vector space model')
+no_of_docs = 3
+files = ['file 1.txt','file 2.txt','file 3.txt']
+
+
+def updateTokenWithoutSw(file_name,doc_id):
+    file = open(file_name)
+    read = file.read()
+    file.seek(0)
+
+    punc = '''!()-[]{};:'"\, <>./?@#$%^&*_~'''
+    for ele in read:
+    	if ele in punc:
+    		read = read.replace(ele, " ")
+
+    read=read.lower()					
+
+    for i in range(1):
+        text_tokens = word_tokenize(read)
+
+    tokens_without_sw = [
+    	word for word in text_tokens if not word in stopwords.words()]
+    
+    return tokens_without_sw
+
+tokens_set=set()
+for i,file in enumerate(files):
+    tokens_set.update(updateTokenWithoutSw(file,i+1))
+
+def count_word(fname,word):
+    k = 0 
+    file = open(fname)
+    read = file.read()
+    file.seek(0)
+    punc = '''!()-[]{};:'"\, <>./?@#$%^&*_~'''
+    for ele in read:
+    	if ele in punc:
+    		read = read.replace(ele, " ")
+    read=read.lower()		
+    #print(fname,word,read.count(word))
+    return read.count(word)
+
+data_vector={}
+
+
+#print(tokens_set)
+
+for i in tokens_set:
+    data_vector[i]=[]
+    for j in range(no_of_docs):
+        data_vector[i].append(count_word(files[j],i))
+data=pd.DataFrame(data_vector)
+#print(data)
+
+#%%
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
+from sklearn.metrics.pairwise import euclidean_distances
+from sklearn.metrics.pairwise import manhattan_distances
+from sklearn.metrics import pairwise_distances
+from nltk.stem import PorterStemmer
+#%%
+q="minds rural"
+ps = PorterStemmer()
+punc = '''!()-[]{};:'"\, <>./?@#$%^&*_~'''
+actual_query=[
+	ps.stem(word) for word in word_tokenize(q) if not word in stopwords.words() and (not word in punc)]
+query_vector=[]
+for i in tokens_set:
+    query_vector.append(q.count(i))
+#%%
+query=np.array(query_vector)
+query=query.reshape(1,-1)
+ans=cosine_similarity(data.to_numpy(),query)
+print(ans)
+#%%
